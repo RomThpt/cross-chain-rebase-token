@@ -14,8 +14,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract RebaseToken is ERC20, Ownable {
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 newInterestRate, uint256 currentInterestRate);
 
+    uint256 private constant PRECISION_FACTOR = 1e18;
     uint256 private s_interestRate = 5e10;
     mapping(address => uint256) private s_userInterestRates;
+    mapping(address => uint256) private s_userLastUpdatedTimestamps;
 
     event InterestRateUpdated(uint256 newInterestRate);
 
@@ -42,8 +44,57 @@ contract RebaseToken is ERC20, Ownable {
     * @param _amount The amount of tokens to mint
     */
     function mint(address _to, uint256 _amount) external {
+        _mintAccruedInterest(_to);
         s_userInterestRates[_to] = s_interestRate;
         _mint(_to, _amount);
+    }
+
+    /*
+    * @notice Get the balance of a user including accrued interest
+    * @dev Override the balanceOf function to include accrued interest
+    * @param _user The address of the user
+    * @return The balance of the user including accrued interest
+    */
+    function balanceOf(address _user) public view override returns (uint256) {
+        //get the current pricipal balance (the number that have actually been minted to the user)
+        // multiply the principal by (1 + interest rate * time elapsed / seconds in a year)
+        return (super.balanceOf(_user) * _calculateUserAccumulatedInterestSinceLastUpdate(_user)) / PRECISION_FACTOR;
+    }
+
+    /*
+    * @notice Calculate the accumulated interest for a user since their last update
+    * @dev Internal function to calculate accumulated interest
+    * @param _user The address of the user
+    * @return The accumulated interest multiplier
+    */
+    function _calculateUserAccumulatedInterestSinceLastUpdate(address _user)
+        internal
+        view
+        returns (uint256 linearInterest)
+    {
+        // we need to calculate the interest that has accumulated since the last update
+        // this is going to be linear growth
+        // 1. calculate the time since the last update
+        // 2. calculate the amount of linear growth
+        // (principal amount) + principak * user interest rate * time elapsed
+
+        uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamps[_user];
+        linearInterest = PRECISION_FACTOR + (s_userInterestRates[_user] * timeElapsed);
+        return linearInterest;
+    }
+
+    /*
+    * @notice Mint accrued interest to a user since the last time they performed an action
+    * @dev Internal function to mint accrued interest based on the user's interest rate
+    * @param _user The address of the user to mint interest to
+    */
+    function _mintAccruedInterest(address _user) internal {
+        // (1) find the current balance of rebase token that have been minted to them -> pricipal
+        // (2) calculate their current balance including any interest. -> balanceOf
+        // calculate the number of tokens that need to be minted to the user (2) - (1) -> interest
+        //call _mint to mint the tokens to the user
+        // set the users last updated timestamp to now
+        s_userLastUpdatedTimestamps[_user] = block.timestamp;
     }
 
     /*
