@@ -38,6 +38,17 @@ contract RebaseToken is ERC20, Ownable {
     }
 
     /*
+    * @notice Get the principal balance of a user (the amount of tokens actually minted to
+    * @param _user The address of the user
+    * @return The principal balance of the user
+    * @dev This function returns the balance without accrued interest
+    */
+    function principalBalanceOf(address _user) external view returns (uint256) {
+        return super.balanceOf(_user);
+    }
+
+
+    /*
     * @notice Mint rebase tokens to a user
     * @dev Internal function to mint tokens
     * @param _to The address to mint tokens to
@@ -60,6 +71,51 @@ contract RebaseToken is ERC20, Ownable {
         // multiply the principal by (1 + interest rate * time elapsed / seconds in a year)
         return (super.balanceOf(_user) * _calculateUserAccumulatedInterestSinceLastUpdate(_user)) / PRECISION_FACTOR;
     }
+
+    /*
+    * @notice Transfer rebase tokens from one user to another
+    * @dev Override the transfer function to mint accrued interest before transferring
+    * @param _to The address to transfer tokens to
+    * @param _amount The amount of tokens to transfer
+    * @return A boolean value indicating whether the operation succeeded
+    * @notice This function mints accrued interest to the sender before transferring tokens
+    */
+    function transfer(address _to, uint256 _amount) public override returns (bool) {
+        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_to);
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(msg.sender);
+        }
+        // TODO: if the recipient has no balance, set their interest rate to the sender's interest rate but it should adapt and so on
+        if (balanceOf(_to) == 0) {
+            s_userInterestRates[_to] = s_userInterestRates[msg.sender];
+        }
+        return super.transfer(_to, _amount);
+    }
+
+    /*
+    * @notice Transfer rebase tokens from one user to another on behalf of a third party
+    * @dev Override the transferFrom function to mint accrued interest before transferring
+    * @param _from The address to transfer tokens from
+    * @param _to The address to transfer tokens to
+    * @param _amount The amount of tokens to transfer
+    * @return A boolean value indicating whether the operation succeeded
+    * @notice This function mints accrued interest to both the sender and recipient before transferring tokens
+    */
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public override returns (bool) {
+        _mintAccruedInterest(_from);
+        _mintAccruedInterest(_to);
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_from);
+        }
+        if( balanceOf(_to) == 0) {
+            s_userInterestRates[_to] = s_userInterestRates[_from];
+        }
+        return super.transferFrom(_from, _to, _amount);
 
     /*
     * @notice Calculate the accumulated interest for a user since their last update
@@ -90,20 +146,31 @@ contract RebaseToken is ERC20, Ownable {
     */
     function _mintAccruedInterest(address _user) internal {
         // (1) find the current balance of rebase token that have been minted to them -> pricipal
+        uint256 previousPrincipal = super.balanceOf(_user);
         // (2) calculate their current balance including any interest. -> balanceOf
+        uint256 currentBalance = balanceOf(_user);
         // calculate the number of tokens that need to be minted to the user (2) - (1) -> interest
-        //call _mint to mint the tokens to the user
+        uint256 interestToMint = currentBalance - previousPrincipal;
         // set the users last updated timestamp to now
         s_userLastUpdatedTimestamps[_user] = block.timestamp;
+        //call _mint to mint the tokens to the user
+        if (interestToMint > 0) {
+            _mint(_user, interestToMint);
+        }
     }
 
     /*
     * @notice Burn rebase tokens from a user
-    * @dev Internal function to burn tokens
     * @param _from The address to burn tokens from
     * @param _amount The amount of tokens to burn
     */
-    function burn(address _from, uint256 _amount) external {}
+    function burn(address _from, uint256 _amount) external {
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_from);
+        }
+        _mintAccruedInterest(_from);
+        _burn(_from, _amount);
+    }
 
     /*****GETTERS******/
 
@@ -113,5 +180,13 @@ contract RebaseToken is ERC20, Ownable {
     */
     function getUserInterestRate(address _user) external view returns (uint256) {
         return s_userInterestRates[_user];
+    }
+
+    /*
+    * @notice Get the current global interest rate
+    * @return The current global interest rate
+    */
+    function getInterestRate() external view returns (uint256) {
+        return s_interestRate;
     }
 }
