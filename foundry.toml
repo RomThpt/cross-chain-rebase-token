@@ -2,6 +2,13 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-remappings = ["@openzeppelin/=lib/openzeppelin-contracts/"]
+rpc_endpoints = { sepolia = "https://eth-mainnet.alchemyapi.io/v2/", arb-sepolia = "https://eth-goerli.alchemyapi.io/v2/"}
+remappings = [
+    "@openzeppelin/contracts@4.8.3/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts@5.0.2/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@ccip/=lib/ccip/",
+    "@chainlink/local/=lib/chainlink-local/"
+]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -22,11 +22,10 @@ contract Vault {
     /**
      * @notice Deposit ETH into the vault and receive rebase tokens
      * @dev This function mints rebase tokens to the sender based on the amount of ETH deposited
-     * @param _amount The amount of ETH to deposit
      * emits a Deposit event
      */
     function deposit() external payable {
-        i_rebaseToken.mint(msg.sender, msg.value);
+        i_rebaseToken.mint(msg.sender, msg.value, i_rebaseToken.getInterestRate());
         emit Deposit(msg.sender, msg.value);
     }
 
@@ -37,6 +36,9 @@ contract Vault {
      * emits a Redeem event
      */
     function redeem(uint256 _amount) external {
+        if (_amount == type(uint256).max) {
+            _amount = i_rebaseToken.balanceOf(msg.sender);
+        }
         i_rebaseToken.burn(msg.sender, _amount);
         (bool success,) = payable(msg.sender).call{value: _amount}("");
         if (!success) {

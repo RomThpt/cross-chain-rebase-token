@@ -17,7 +17,7 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
 
     uint256 private constant PRECISION_FACTOR = 1e18;
     bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
-    uint256 private s_interestRate = 5e10;
+    uint256 private s_interestRate = (5 * PRECISION_FACTOR) / 1e8;
     mapping(address => uint256) private s_userInterestRates;
     mapping(address => uint256) private s_userLastUpdatedTimestamps;
 
@@ -59,9 +59,9 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
      * @param _to The address to mint tokens to
      * @param _amount The amount of tokens to mint
      */
-    function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+    function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE) {
         _mintAccruedInterest(_to);
-        s_userInterestRates[_to] = s_interestRate;
+        s_userInterestRates[_to] = _userInterestRate;
         _mint(_to, _amount);
     }
 
@@ -71,9 +71,6 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
     * @param _amount The amount of tokens to burn
     */
     function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
-        if (_amount == type(uint256).max) {
-            _amount = balanceOf(_from);
-        }
         _mintAccruedInterest(_from);
         _burn(_from, _amount);
     }
@@ -136,7 +133,7 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
      * @notice Calculate the accumulated interest for a user since their last update
      * @dev Internal function to calculate accumulated interest
      * @param _user The address of the user
-     * @return The accumulated interest multiplier
+     * @return linearInterest The accumulated interest factor since the last update
      */
     function _calculateUserAccumulatedInterestSinceLastUpdate(address _user)
         internal
