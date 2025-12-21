@@ -3,7 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 via_ir = true
-rpc_endpoints = { sepolia = "https://eth-mainnet.alchemyapi.io/v2/", arb-sepolia = "https://eth-goerli.alchemyapi.io/v2/"}
+rpc_endpoints = { sepolia = "https://ethereum-sepolia.rpc.subquery.network/public", arb-sepolia = "https://endpoints.omniatech.io/v1/arbitrum/sepolia/public"}
 remappings = [
     "@openzeppelin/contracts@4.8.3/=lib/openzeppelin-contracts/contracts/",
     "@openzeppelin/contracts@5.0.2/=lib/openzeppelin-contracts/contracts/",
