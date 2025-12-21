@@ -17,8 +17,8 @@ contract BridgeTokenScript is Script {
     ) public {
         vm.startBroadcast();
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        tokenAmounts[0] = Client.EVMTokenAmount({tokenAddress: tokenToSendAddress, amount: amount});
-        Client.EVM2AnyMessage message = Client.EVM2AnyMessage({
+        tokenAmounts[0] = Client.EVMTokenAmount({token: tokenToSendAddress, amount: amount});
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(receiverAddress),
             data: "",
             tokenAmounts: tokenAmounts,
